@@ -2,8 +2,8 @@ import requests
 import json
 import streamlit as st
 import google.generativeai as genai
-# Configure the API key for the Gemini API
-api_key="AIzaSyBIbYc1f-ltJC3GrHpntJiLZn2l7yF53ls"
+
+from api_key import api_key
 genai.configure(api_key=api_key)
 #Configure the model generation settings
 generation_config = {
@@ -34,34 +34,42 @@ def generate_design_idea(style,size,rooms):
     text=response.candidates[0].content if isinstance(response.candidates[0].content,str) else response.candidates[0].content.parts[0].text
     return text
 # Function to fetch an image from lexica.art based on the design style
-def fetch_image_from_lexica(style):
-    lexica_url = f"https://lexica.art/api/v1?q={style}"
-    response =requests.get(lexica_url)
-    response.raise_for_status()
-    data = response.json()
-    if data['images']:
-        return data['images'][0]['src'] # Return the first image URL
+def fetch_image_from_pexels(style,):
+    pexels_url = f"https://api.pexels.com/v1?q={style}"
+    headers={"Authorization":api_key}
+    response =requests.get(pexels_url,headers=headers)
+    if response.status_code==200:
+        try:
+            data = response.json()
+            if data['photos']:
+                return data['photos'][0]['src']['medium']# OR "oroginal", "large2x", etc.
+            else:
+                return None
+        except json. JSONDecodeError as e:
+            print(f"Error decoding Json:{e}")
+            return None
     else:
-        return None  
+        print(f"Error fetching from Pexels:{response.status_code}")
+        return None
 # Streamlit UI for taking user inputs
 st.title("Custom Home Design assistant")
 
 # Textboxes for style,size,and number of rooms input 
 style = st.text_input("Enter the home design style (e.g., Modern, rustic)")
-size = st.text_input("Enter the size of the home (e.g., 20000sq ft)")
+size = st.text_input("Enter the size of the home (e.g., 2000sq ft)")
 rooms = st.text_input("Enter the number of rooms")
 # submit button
 if st.button("Generate Design"):
     if style and size and rooms:
         design_idea = generate_design_idea(style,size,rooms)
-        image_url = fetch_image_from_lexica(style)
+        image_url = fetch_image_from_pexels(style)
 
         st.markdown("### Custom Home Design Idea ")
         st.markdown(design_idea)
 
         if image_url:
-            st.image(image_url, caption="Design inspiration from Lexica.art")
+            st.image(image_url, caption="Design inspiration from Pexels.art")
         else:
-            st.warning("no relevant images found on Lexica.art.")
+            st.warning("no relevant images found on Pexels.art.")
     else:
         st.warning("Please fill in all the fields.")
